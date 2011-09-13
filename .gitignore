@@ -1,0 +1,6 @@
+bundler
+config.yml
+
+.DS_Store
+
+sinatra.log
