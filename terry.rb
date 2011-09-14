@@ -108,7 +108,7 @@ class Database
 
   def destroy_db
     begin
-      del_db = "DROP DATABASE #{database}"
+      del_db = "DROP DATABASE #{database};"
       connection.exec(del_db) if db_exist?
       set_status("destroyed db", nil)
     rescue => e
@@ -118,8 +118,8 @@ class Database
 
   def destroy_user
     begin
-      del_user = "DROP ROLE #{username}"
-      connection.exec(del_user) if db_exist?
+      del_user = "DROP ROLE #{username};"
+      connection.exec(del_user) if user_exist?
       set_status("destroyed user", nil)
     rescue => e
       set_status("failed on user", {"message" => e.message, "backtrace" => e.backtrace})
@@ -145,7 +145,7 @@ class Database
     old_status = JSON.parse(redis_queue.get(app_name)) if redis_queue.get(app_name) != nil
     start_time = Time.now.to_s
     finish_time = Time.now.to_s
-    start_time = old_status['started_at'] if old_status != nil
+    start_time = old_status['started_at'] if ((old_status != nil) && (old_status['started_at'] != ""))
     arh = self.to_h
     self.status = status_string
     arh["status"] = status_string
