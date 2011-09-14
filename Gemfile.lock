@@ -22,6 +22,7 @@ GEM
       net-ssh (>= 1.99.1)
     net-ssh (2.1.4)
     nokogiri (1.5.0)
+    pg (0.11.0)
     redis (2.2.2)
     remote_syslog_logger (1.0.3)
       syslog_protocol
@@ -35,5 +36,6 @@ DEPENDENCIES
   daemons
   fog
   json
+  pg
   redis
   remote_syslog_logger

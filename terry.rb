@@ -46,7 +46,8 @@ class Database
   attr_accessor :database, :username, :hostip, :pwd_string, :redis_queue
   attr_accessor :app_name, :connection, :config
   def initialize(database, username, hostip, pwd_string, app_name)
-    @config = YAML.load_file("#{@current_path}/config.yml")[environment]
+    current_path = File.expand_path(File.dirname(__FILE__))
+    @config = YAML.load_file("#{current_path}/config.yml")[environment]
     @database = database
     @username = username
     @hostip = hostip
@@ -155,17 +156,18 @@ class Database
 end
 
 @current_path = File.expand_path(File.dirname(__FILE__))
+require "#{@current_path}/lib/remote_syslog"
 @config = YAML.load_file("#{@current_path}/config.yml")[environment]
 @redis = Redis.new(:host => @config['redis']['host'], :port => @config['redis']['port'], :password => @config['redis']['password'], :db => @config['redis']['db'])
 
-LOGGER = RemoteSyslog.new(Settings.remote_log_host,Settings.remote_log_port) if environment == "production"
+LOGGER = RemoteSyslog.new(@config["remote_log_host"], @config["remote_log_port"]) if environment == "production"
 LOGGER = SimpleLogger.new("sinatra.log") if environment == "development"
 
 def logger
   LOGGER
 end
 
-# in
+# in redis/2
 #  {"database" => string,         # database name
 #   "username" => string,         # the name of the user
 #   "hostip" => string,           # the ip address of the server doing the requests
@@ -179,7 +181,6 @@ while true
   queue = JSON.parse(@redis.get("queue")) unless @redis.get("queue") == nil
   while queue.size > 0
     app = queue.pop
-    create_db(app)
     logger.info("db for #{app["app"]} out of the queue")
     one_db = Database.new(app["database"], app['username'], app['hostip'], app['token'], app["app"])
     if (app["action"] == "create")
