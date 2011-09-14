@@ -44,7 +44,7 @@ end
 
 class Database
   attr_accessor :database, :username, :hostip, :pwd_string, :redis_queue
-  attr_accessor :app_name, :connection, :config
+  attr_accessor :app_name, :connection, :config, :status
   def initialize(database, username, hostip, pwd_string, app_name)
     current_path = File.expand_path(File.dirname(__FILE__))
     @config = YAML.load_file("#{current_path}/config.yml")[environment]
@@ -70,10 +70,11 @@ class Database
     begin
       req_t = "CREATE"
       req_t = "ALTER" if db_exist?
-      connection.exec("#{req_t} DATABASE #{database} OWNER #{username};")
+      result = connection.exec("#{req_t} DATABASE #{database} TEMPLATE template0;")
+      result = connection.exec("GRANT ALL ON DATABASE #{database} TO #{username};")
       set_status("created db", nil)
     rescue => e
-      set_status("failed", {"message" => e.message, "backtrace" => e.backtrace})
+      set_status("failed on db", {"message" => e.message, "backtrace" => result + "\n\n" + e.backtrace})
     end
   end
 
@@ -82,15 +83,15 @@ class Database
       password = Digest::SHA1.hexdigest(config['db_token'] + '-' + pwd_string)
       req_t = "CREATE"
       req_t = "ALTER" if user_exist?
-      connection.exec("#{req_t} ROLE #{username} WITH PASSWORD '#{password}';")
+      connection.exec("#{req_t} ROLE #{username} WITH PASSWORD '#{password}' LOGIN;")
       set_status("created user", nil)
     rescue => e
-      set_status("failed", {"message" => e.message, "backtrace" => e.backtrace})
+      set_status("failed on user", {"message" => e.message, "backtrace" => e.backtrace})
     end
   end
   
   def user_exist?
-    list_u = "SELECT usename FROM pg_catalog.pg_user,"
+    list_u = "SELECT usename FROM pg_catalog.pg_user;"
     list = connection.exec(list_u)
     exist = false
     list.to_a.each { |us| exist = true if us['usename'] == username }
@@ -111,7 +112,7 @@ class Database
       connection.exec(del_db) if db_exist?
       set_status("destroyed db", nil)
     rescue => e
-      set_status("failed", {"message" => e.message, "backtrace" => e.backtrace})
+      set_status("failed on db", {"message" => e.message, "backtrace" => e.backtrace})
     end
   end
 
@@ -121,7 +122,7 @@ class Database
       connection.exec(del_user) if db_exist?
       set_status("destroyed user", nil)
     rescue => e
-      set_status("failed", {"message" => e.message, "backtrace" => e.backtrace})
+      set_status("failed on user", {"message" => e.message, "backtrace" => e.backtrace})
     end
   end
 
@@ -198,7 +199,7 @@ while true
       one_db.destroy_user
       logger.info("database and user destroyed for #{app['app']}")
     end
-    @redis.set(queue.to_json)
+    @redis.set(queue, queue.to_json)
   end
   sleep(10)
 end
